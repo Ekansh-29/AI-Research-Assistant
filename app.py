@@ -1,13 +1,16 @@
 """Streamlit interface for the AI Research Assistant."""
 
+from pathlib import Path
+
 import streamlit as st
 
-from rag.chain import ResearchChain
-
-
-
 from ingestion.ingestor import DocumentIngestor
+from rag.chain import ResearchChain
 from utils.file_manager import save_uploaded_file
+
+# -------------------------------------------------------
+# Page Configuration
+# -------------------------------------------------------
 
 st.set_page_config(
     page_title="AI Research Assistant",
@@ -18,30 +21,21 @@ st.set_page_config(
 st.title("📚 AI Research Assistant")
 st.write("Ask questions about your indexed research papers.")
 
-uploaded_file = st.file_uploader(
-    "Upload a research paper",
-    type=["pdf"]
-)
+# -------------------------------------------------------
+# Session State
+# -------------------------------------------------------
 
-if uploaded_file:
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    if st.button("Index Document"):
-
-        with st.spinner("Indexing..."):
-
-            pdf_path = save_uploaded_file(uploaded_file)
-
-            ingestor = DocumentIngestor()
-
-            chunks = ingestor.ingest(pdf_path)
-
-        st.success(f"Indexed {chunks} chunks!")
-
-from pathlib import Path
+# -------------------------------------------------------
+# Sidebar
+# -------------------------------------------------------
 
 st.sidebar.title("📚 Indexed Papers")
 
 upload_dir = Path("uploads")
+upload_dir.mkdir(exist_ok=True)
 
 pdfs = sorted(upload_dir.glob("*.pdf"))
 
@@ -51,32 +45,90 @@ if pdfs:
 else:
     st.sidebar.info("No papers indexed yet.")
 
-# Load the chain once
+# -------------------------------------------------------
+# PDF Upload
+# -------------------------------------------------------
+
+uploaded_file = st.file_uploader(
+    "Upload a research paper",
+    type=["pdf"],
+)
+
+if uploaded_file:
+
+    destination = upload_dir / uploaded_file.name
+
+    if st.button("Index Document"):
+
+        if destination.exists():
+            st.warning("This document has already been uploaded.")
+
+        else:
+            with st.spinner("Indexing document..."):
+
+                pdf_path = save_uploaded_file(uploaded_file)
+
+                ingestor = DocumentIngestor()
+
+                chunks = ingestor.ingest(pdf_path)
+
+            st.success(f"✅ Indexed {chunks} chunks successfully!")
+
+# -------------------------------------------------------
+# Load RAG Chain
+# -------------------------------------------------------
+
 @st.cache_resource
 def load_chain():
     return ResearchChain()
 
+
 chain = load_chain()
 
-question = st.text_input(
-    "Ask a question",
-    placeholder="What is self-attention?",
+# -------------------------------------------------------
+# Display Previous Messages
+# -------------------------------------------------------
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# -------------------------------------------------------
+# Chat Input
+# -------------------------------------------------------
+
+question = st.chat_input(
+    "Ask a question...",
 )
 
-if st.button("Ask"):
+if question:
 
-    if question.strip():
+    # Save user message
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": question,
+        }
+    )
+
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(question)
+
+    # Generate assistant response
+    with st.chat_message("assistant"):
+
+        placeholder = st.empty()
 
         with st.spinner("Thinking..."):
-
             response = chain.ask(question)
 
-        st.markdown("## Answer")
+        placeholder.markdown(response.answer)
 
-        st.write(response.answer)
-        st.markdown("---")
-        st.subheader("Retrieved Context")
-
-        for i, doc in enumerate(response.documents, start=1):
-          with st.expander(f"Chunk {i}"):
-               st.write(doc.page_content)
+    # Save assistant response
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": response.answer,
+        }
+    )
