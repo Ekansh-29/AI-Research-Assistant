@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import streamlit as st
+from utils.citations import format_sources
 
 from ingestion.ingestor import DocumentIngestor
 from rag.chain import ResearchChain
@@ -90,8 +91,21 @@ chain = load_chain()
 # -------------------------------------------------------
 
 for message in st.session_state.messages:
+
     with st.chat_message(message["role"]):
+
         st.markdown(message["content"])
+
+        if (
+            message["role"] == "assistant"
+            and "sources" in message
+            and message["sources"]
+        ):
+            st.divider()
+            st.caption("📚 Sources")
+
+            for citation in format_sources(message["sources"]):
+                st.markdown(citation)
 
 # -------------------------------------------------------
 # Chat Input
@@ -125,10 +139,17 @@ if question:
 
         placeholder.markdown(response.answer)
 
+        st.divider()
+        st.caption("📚 Sources");
+
+        for citation in format_sources(response.documents):
+            st.markdown(citation)
+
     # Save assistant response
     st.session_state.messages.append(
         {
             "role": "assistant",
             "content": response.answer,
+            "sources": response.documents
         }
     )
