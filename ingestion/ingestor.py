@@ -18,20 +18,21 @@ class DocumentIngestor:
 
         self.vector_store = VectorStoreManager(embeddings)
 
-    def ingest(self, pdf_path: str | Path) -> int:
+    def ingest(self, pdf_path: str | Path) -> dict:
         """
         Index a PDF into ChromaDB.
 
-        Returns
-        -------
-        int
-            Number of chunks indexed.
+        Returns:
+            Dictionary containing indexing statistics.
         """
 
         documents = load_pdf_documents(pdf_path)
 
         chunks = split_documents(documents)
 
-        self.vector_store.index_documents(documents)   
+        self.vector_store.index_documents(chunks)
 
-        return len(chunks) 
+        return {
+            "pages": len(documents),
+            "chunks": len(chunks),
+        }

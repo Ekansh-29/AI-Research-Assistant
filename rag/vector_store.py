@@ -70,3 +70,17 @@ class VectorStoreManager:
             Configured retriever for use in RAG chains.
         """
         return self._store.as_retriever(search_kwargs={"k": k})
+
+    def delete_vectors(self, filename: str) -> None:
+        """
+        Delete all vectorss belonging to a document.
+
+        Args:
+            filename: PDF filename stored in metadata["source"].
+        """
+
+        self._store.delete(
+            where={
+                "source": filename
+            }
+        )

@@ -1,14 +1,13 @@
 """Streamlit interface for the AI Research Assistant."""
 
+from logging import Manager
 from pathlib import Path
 
 import streamlit as st
-from utils.citations import format_sources
 
-from ingestion.ingestor import DocumentIngestor
 from rag.chain import ResearchChain
-from utils.file_manager import save_uploaded_file
-
+from utils.citations import format_sources
+from services.document_manager import DocumentManager
 # -------------------------------------------------------
 # Page Configuration
 # -------------------------------------------------------
@@ -23,6 +22,13 @@ st.title("📚 AI Research Assistant")
 st.write("Ask questions about your indexed research papers.")
 
 # -------------------------------------------------------
+# Constants
+# -------------------------------------------------------
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# -------------------------------------------------------
 # Session State
 # -------------------------------------------------------
 
@@ -30,24 +36,47 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # -------------------------------------------------------
+# Cached Resources
+# -------------------------------------------------------
+
+@st.cache_resource
+def load_chain():
+    return ResearchChain()
+
+
+chain = load_chain()
+manager = DocumentManager()
+
+# -------------------------------------------------------
 # Sidebar
 # -------------------------------------------------------
 
 st.sidebar.title("📚 Indexed Papers")
 
-upload_dir = Path("uploads")
-upload_dir.mkdir(exist_ok=True)
+documents = manager.list_documents()
 
-pdfs = sorted(upload_dir.glob("*.pdf"))
+if documents:
 
-if pdfs:
-    for pdf in pdfs:
-        st.sidebar.write(f"📄 {pdf.name}")
+    for doc in documents:
+
+        st.sidebar.markdown(f"### 📄 {doc['filename']}")
+        st.sidebar.write(f"📑 Pages: {doc['pages']}")
+        st.sidebar.write(f"✂️ Chunks: {doc['chunks']}")
+        st.sidebar.caption(f"Indexed: {doc['indexed_at']}")
+
+        if st.sidebar.button(
+             "🗑 Delete",
+             key=doc["filename"],
+        ): 
+            manager.delete_document(doc["filename"])
+            st.rerun()
+        st.sidebar.divider()
+
 else:
     st.sidebar.info("No papers indexed yet.")
 
 # -------------------------------------------------------
-# PDF Upload
+# Upload Section
 # -------------------------------------------------------
 
 uploaded_file = st.file_uploader(
@@ -57,37 +86,24 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
 
-    destination = upload_dir / uploaded_file.name
-
     if st.button("Index Document"):
 
-        if destination.exists():
-            st.warning("This document has already been uploaded.")
+        with st.spinner("Indexing document..."):
 
-        else:
-            with st.spinner("Indexing document..."):
+            try:
+                stats = manager.index_document(uploaded_file)
 
-                pdf_path = save_uploaded_file(uploaded_file)
+                st.success(
+                    f"✅ Indexed {stats['chunks']} chunks from {stats['pages']} pages."
+                )
 
-                ingestor = DocumentIngestor()
+                st.rerun()
 
-                chunks = ingestor.ingest(pdf_path)
-
-            st.success(f"✅ Indexed {chunks} chunks successfully!")
-
-# -------------------------------------------------------
-# Load RAG Chain
-# -------------------------------------------------------
-
-@st.cache_resource
-def load_chain():
-    return ResearchChain()
-
-
-chain = load_chain()
+            except ValueError as e:
+                st.warning(str(e))
 
 # -------------------------------------------------------
-# Display Previous Messages
+# Previous Chat Messages
 # -------------------------------------------------------
 
 for message in st.session_state.messages:
@@ -98,9 +114,9 @@ for message in st.session_state.messages:
 
         if (
             message["role"] == "assistant"
-            and "sources" in message
-            and message["sources"]
+            and message.get("sources")
         ):
+
             st.divider()
             st.caption("📚 Sources")
 
@@ -112,7 +128,7 @@ for message in st.session_state.messages:
 # -------------------------------------------------------
 
 question = st.chat_input(
-    "Ask a question...",
+    "Ask a question about your research papers..."
 )
 
 if question:
@@ -129,27 +145,30 @@ if question:
     with st.chat_message("user"):
         st.markdown(question)
 
-    # Generate assistant response
+    # Generate answer
     with st.chat_message("assistant"):
 
         placeholder = st.empty()
 
         with st.spinner("Thinking..."):
+
             response = chain.ask(question)
 
         placeholder.markdown(response.answer)
 
-        st.divider()
-        st.caption("📚 Sources");
+        if response.documents:
 
-        for citation in format_sources(response.documents):
-            st.markdown(citation)
+            st.divider()
+            st.caption("📚 Sources")
+
+            for citation in format_sources(response.documents):
+                st.markdown(citation)
 
     # Save assistant response
     st.session_state.messages.append(
         {
             "role": "assistant",
             "content": response.answer,
-            "sources": response.documents
+            "sources": response.documents,
         }
     )
