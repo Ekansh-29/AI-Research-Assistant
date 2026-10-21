@@ -1,0 +1,30 @@
+# Render "Blueprint": tells Render how to build and run the app.
+# Secrets marked "sync: false" are typed in on Render's website, never stored here.
+services:
+  - type: web
+    name: ai-research-assistant
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: EMBEDDING_MODEL
+        value: sentence-transformers/all-minilm-l6-v2
+      - key: EMBEDDING_DIM
+        value: "384"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false

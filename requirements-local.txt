@@ -1,0 +1,11 @@
+# Everything the server needs, plus extras for running on your laptop.
+-r requirements.txt
+
+# Makes embeddings on your laptop when QDRANT_URL is empty (no PyTorch needed)
+fastembed
+
+# Use Ollama instead of Groq when LLM_PROVIDER=ollama
+langchain-ollama
+
+# Old Streamlit UI (app.py), optional
+streamlit

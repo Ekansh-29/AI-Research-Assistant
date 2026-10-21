@@ -48,7 +48,7 @@ body {
 }
 .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
 .dropzone strong { display: block; margin-bottom: 4px; }
-.dropzone span { font-size: .85rem; color: var(--muted); word-break: break-all; }
+.dropzone span { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
 
 button {
   font: inherit;
@@ -62,6 +62,44 @@ button {
 button:disabled { opacity: .45; cursor: not-allowed; }
 
 .upload button { width: 100%; margin-top: 10px; }
+
+[hidden] { display: none !important; }
+
+/* Admin badge (logged in) */
+.admin-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .85rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.link-btn {
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: .85rem;
+  text-decoration: underline;
+}
+
+/* Admin login (visitors) */
+.admin-login { margin-top: 28px; font-size: .85rem; color: var(--muted); }
+.admin-login summary { cursor: pointer; }
+.admin-login form { display: flex; gap: 8px; margin-top: 10px; }
+.admin-login input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.admin-login input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.admin-login button { padding: 8px 12px; }
 
 .status { font-size: .85rem; min-height: 1.2em; margin: 8px 0 0; color: var(--muted); }
 .status.error { color: var(--danger); }

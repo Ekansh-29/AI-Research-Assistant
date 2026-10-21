@@ -1,60 +1,49 @@
-"""PDF loading utilities."""
+"""PDF loading utilities.
 
-from pathlib import Path
+Reads the PDF straight from memory (bytes), so nothing is saved to disk.
+"""
 
-import pymupdf  # PyMuPDF (new import name for "fitz")
+import pymupdf  # PyMuPDF
 from langchain_core.documents import Document
 
 
-def load_pdf_documents(pdf_path: str | Path) -> list[Document]:
+def load_pdf_bytes(content: bytes, filename: str) -> tuple[list[Document], int]:
     """
-    Load a PDF as LangChain Documents, one Document per page.
+    Turn a PDF into LangChain Documents, one per page that has text.
 
-    Pages with no text (blank or image-only) are skipped.
+    Returns:
+        (documents, total_page_count)
 
     Raises:
-        FileNotFoundError: If the file does not exist.
         ValueError: If the PDF is corrupted, password-protected or has no text.
     """
-    path = Path(pdf_path)
-
-    if not path.exists():
-        raise FileNotFoundError(f"PDF file not found: {path}")
-
     try:
-        pdf = pymupdf.open(path)
+        pdf = pymupdf.open(stream=content, filetype="pdf")
     except Exception as exc:
-        raise ValueError(f"Invalid or corrupted PDF: {path.name}") from exc
+        raise ValueError(f"Invalid or corrupted PDF: {filename}") from exc
 
     documents: list[Document] = []
 
     with pdf:
         if pdf.needs_pass:
-            raise ValueError(f"{path.name} is password-protected.")
+            raise ValueError(f"{filename} is password-protected.")
 
         total_pages = pdf.page_count
 
         for page_number, page in enumerate(pdf, start=1):
             text = page.get_text().strip()
-
-            if not text:
-                continue
-
-            documents.append(
-                Document(
-                    page_content=text,
-                    metadata={"source": path.name, "page": page_number},
+            if text:
+                documents.append(
+                    Document(
+                        page_content=text,
+                        metadata={"source": filename, "page": page_number},
+                    )
                 )
-            )
 
     if not documents:
         raise ValueError(
-            f"No readable text found in {path.name}. "
+            f"No readable text found in {filename}. "
             "It may be a scanned (image-only) PDF."
         )
 
-    # Remember the real page count (including skipped blank pages)
-    for doc in documents:
-        doc.metadata["total_pages"] = total_pages
-
-    return documents
+    return documents, total_pages

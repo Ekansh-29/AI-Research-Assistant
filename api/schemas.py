@@ -37,3 +37,8 @@ class UploadResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class InfoResponse(BaseModel):
+    admin_required: bool
+    max_upload_mb: int

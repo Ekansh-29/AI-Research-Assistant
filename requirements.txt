@@ -1,20 +1,15 @@
+# What the deployed server needs (kept small for the free 512 MB plan).
+# On your laptop, install requirements-local.txt instead.
+
 # Web API
 fastapi
 uvicorn[standard]
 python-multipart
 
 # RAG pipeline
-langchain
 langchain-core
-langchain-community
 langchain-text-splitters
-langchain-chroma
-langchain-huggingface
-langchain-ollama
-chromadb
-sentence-transformers
+langchain-groq
+qdrant-client>=1.15
 pymupdf
 python-dotenv
-
-# Old Streamlit UI (optional)
-streamlit

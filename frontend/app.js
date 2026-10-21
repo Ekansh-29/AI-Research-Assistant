@@ -1,7 +1,6 @@
 // Where the backend lives.
-// "" = same server that serves this page (local setup).
-// When the frontend is hosted separately, put the backend URL here,
-// e.g. "https://your-backend.onrender.com"
+// "" = same server that serves this page (local and Render setup).
+// If the frontend is ever hosted separately, put the backend URL here.
 const API_BASE = "";
 
 const $ = (sel) => document.querySelector(sel);
@@ -17,20 +16,131 @@ async function api(path, options = {}) {
   if (!res.ok) {
     let detail = data && data.detail;
     if (Array.isArray(detail)) detail = detail.map((d) => d.msg).join(", ");
-    throw new Error(detail || `Request failed (${res.status})`);
+    const err = new Error(detail || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
   return data;
 }
 
+// ---------------------------------------------------------------
+// Admin login
+//   - If the server has no password: everyone can upload/delete.
+//   - If it has one: visitors see only the chat and paper list;
+//     after "Unlock", the password box disappears and admin tools show.
+// The password is kept for this browser tab only (sessionStorage).
+// ---------------------------------------------------------------
+const state = {
+  adminRequired: true,   // assume locked until the server says otherwise
+  adminToken: "",
+  maxUploadMb: 15,
+};
+
+function canEdit() {
+  return !state.adminRequired || Boolean(state.adminToken);
+}
+
+function adminHeaders() {
+  return state.adminToken ? { "X-Admin-Token": state.adminToken } : {};
+}
+
+function saveToken(token) {
+  state.adminToken = token;
+  try {
+    if (token) sessionStorage.setItem("adminToken", token);
+    else sessionStorage.removeItem("adminToken");
+  } catch { /* storage blocked: still works until page reload */ }
+}
+
+function readSavedToken() {
+  try { return sessionStorage.getItem("adminToken") || ""; } catch { return ""; }
+}
+
+function renderAdminUI() {
+  const editing = canEdit();
+  $("#upload-form").hidden = !editing;
+  $("#admin-badge").hidden = !(state.adminRequired && state.adminToken);
+  $("#admin-login").hidden = !(state.adminRequired && !state.adminToken);
+  loadDocuments(); // re-draw list so delete buttons appear/disappear
+}
+
+async function verifyToken(token) {
+  await api("/api/admin/verify", { method: "POST", headers: { "X-Admin-Token": token } });
+}
+
+$("#login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("#admin-token");
+  const btn = $("#login-btn");
+  const status = $("#login-status");
+  const token = input.value;
+  if (!token) return;
+
+  btn.disabled = true;
+  status.textContent = "Checking…";
+  status.className = "status";
+
+  try {
+    await verifyToken(token);
+    saveToken(token);
+    input.value = "";                 // clear the box
+    $("#admin-login").open = false;
+    status.textContent = "";
+    renderAdminUI();
+  } catch (err) {
+    status.textContent = err.status === 401 ? "Wrong password." : err.message;
+    status.className = "status error";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("#logout-btn").addEventListener("click", () => {
+  saveToken("");
+  setStatus("");
+  renderAdminUI();
+});
+
+// If the server rejects our saved password (e.g. it was changed), log out.
+function handleAuthError(err) {
+  if (err.status === 401) {
+    saveToken("");
+    renderAdminUI();
+    return true;
+  }
+  return false;
+}
+
+async function initAdmin() {
+  try {
+    const info = await api("/api/info");
+    state.adminRequired = info.admin_required;
+    state.maxUploadMb = info.max_upload_mb;
+  } catch {
+    // Backend unreachable: loadDocuments() will show the error.
+  }
+
+  const saved = readSavedToken();
+  if (state.adminRequired && saved) {
+    try {
+      await verifyToken(saved);
+      state.adminToken = saved;
+    } catch {
+      saveToken("");
+    }
+  }
+  renderAdminUI();
+}
+
+// ---------------------------------------------------------------
+// Documents (sidebar)
+// ---------------------------------------------------------------
 function setStatus(text, kind = "") {
   const el = $("#upload-status");
   el.textContent = text;
   el.className = "status " + kind;
 }
 
-// ---------------------------------------------------------------
-// Documents (sidebar)
-// ---------------------------------------------------------------
 async function loadDocuments() {
   const list = $("#doc-list");
   try {
@@ -53,14 +163,17 @@ async function loadDocuments() {
       meta.className = "doc-meta";
       meta.textContent = `${doc.pages} pages · ${doc.chunks} chunks · ${doc.indexed_at}`;
       info.append(name, meta);
+      li.append(info);
 
-      const del = document.createElement("button");
-      del.className = "delete-btn";
-      del.textContent = "Delete";
-      del.title = `Delete ${doc.filename}`;
-      del.onclick = () => deleteDocument(doc.filename);
+      if (canEdit()) {
+        const del = document.createElement("button");
+        del.className = "delete-btn";
+        del.textContent = "Delete";
+        del.title = `Delete ${doc.filename}`;
+        del.onclick = () => deleteDocument(doc.filename);
+        li.append(del);
+      }
 
-      li.append(info, del);
       list.append(li);
     }
   } catch (err) {
@@ -75,11 +188,14 @@ async function loadDocuments() {
 async function deleteDocument(filename) {
   if (!confirm(`Delete "${filename}" and all its chunks?`)) return;
   try {
-    await api(`/api/documents/${encodeURIComponent(filename)}`, { method: "DELETE" });
+    await api(`/api/documents/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+      headers: adminHeaders(),
+    });
     setStatus(`Deleted ${filename}`, "ok");
     loadDocuments();
   } catch (err) {
-    setStatus(err.message, "error");
+    if (!handleAuthError(err)) setStatus(err.message, "error");
   }
 }
 
@@ -94,6 +210,10 @@ function pickFile(file) {
   if (!file) return;
   if (!file.name.toLowerCase().endsWith(".pdf")) {
     setStatus("Please choose a PDF file.", "error");
+    return;
+  }
+  if (file.size > state.maxUploadMb * 1024 * 1024) {
+    setStatus(`File is larger than ${state.maxUploadMb} MB.`, "error");
     return;
   }
   selectedFile = file;
@@ -124,15 +244,21 @@ $("#upload-form").addEventListener("submit", async (e) => {
   form.append("file", selectedFile);
 
   try {
-    const stats = await api("/api/documents", { method: "POST", body: form });
+    const stats = await api("/api/documents", {
+      method: "POST",
+      body: form,
+      headers: adminHeaders(),
+    });
     setStatus(`Indexed ${stats.chunks} chunks from ${stats.pages} pages.`, "ok");
     selectedFile = null;
     fileInput.value = "";
     $("#file-label").textContent = "Click or drop a research paper here";
     loadDocuments();
   } catch (err) {
-    setStatus(err.message, "error");
-    btn.disabled = false;
+    if (!handleAuthError(err)) {
+      setStatus(err.message, "error");
+      btn.disabled = false;
+    }
   }
 });
 
@@ -226,4 +352,4 @@ function autoGrow() {
 questionBox.addEventListener("input", autoGrow);
 
 // Start
-loadDocuments();
+initAdmin();

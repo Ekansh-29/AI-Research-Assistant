@@ -24,3 +24,6 @@ Thumbs.db
 # Secrets and local state
 .env
 metadata.json
+
+# Local Qdrant database (laptop mode)
+qdrant_data/

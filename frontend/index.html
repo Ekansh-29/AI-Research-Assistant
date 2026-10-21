@@ -13,7 +13,13 @@
     <aside class="sidebar">
       <h1 class="brand">Research<span>Assistant</span></h1>
 
-      <form id="upload-form" class="upload">
+      <!-- Shown when logged in as admin (or when no password is needed) -->
+      <div id="admin-badge" class="admin-badge" hidden>
+        <span>Admin mode</span>
+        <button type="button" id="logout-btn" class="link-btn">Lock</button>
+      </div>
+
+      <form id="upload-form" class="upload" hidden>
         <label for="file-input" class="dropzone" id="dropzone">
           <strong>Upload a PDF</strong>
           <span id="file-label">Click or drop a research paper here</span>
@@ -27,14 +33,25 @@
       <ul id="doc-list" class="doc-list">
         <li class="empty">Loading…</li>
       </ul>
+
+      <!-- Shown to visitors when the server has an admin password -->
+      <details id="admin-login" class="admin-login" hidden>
+        <summary>Admin login</summary>
+        <form id="login-form">
+          <input type="password" id="admin-token" placeholder="Admin password"
+            autocomplete="current-password" required />
+          <button type="submit" id="login-btn">Unlock</button>
+        </form>
+        <p id="login-status" class="status" role="status"></p>
+      </details>
     </aside>
 
     <!-- Right: chat -->
     <main class="chat">
       <div id="messages" class="messages">
         <div class="welcome">
-          <h2>Ask anything about your papers</h2>
-          <p>Answers come only from the PDFs you've indexed, with page references.</p>
+          <h2>Ask anything about the papers</h2>
+          <p>Answers come only from the indexed PDFs, with page references.</p>
         </div>
       </div>
 
