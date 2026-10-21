@@ -1,42 +1,30 @@
 """Chroma vector store utilities for document retrieval."""
 
+from functools import lru_cache
 from pathlib import Path
 
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
-from langchain_core.documents import Document
 
-DEFAULT_PERSIST_DIR = "chroma_db"
-DEFAULT_COLLECTION_NAME = "research_documents"
+from config import CHROMA_DIR, COLLECTION_NAME
+from ingestion.embeddings import get_shared_embeddings
 
 
 class VectorStoreManager:
-    """
-    Manages a persisted Chroma vector store for the RAG pipeline.
-
-    Instantiate with an Embeddings object (e.g. from EmbeddingManager) and reuse
-    the same instance for ingestion and retrieval.
-    """
+    """Manages a persisted Chroma collection used for indexing and search."""
 
     def __init__(
         self,
         embeddings: Embeddings,
-        persist_directory: str | Path = DEFAULT_PERSIST_DIR,
-        collection_name: str = DEFAULT_COLLECTION_NAME,
+        persist_directory: str | Path = CHROMA_DIR,
+        collection_name: str = COLLECTION_NAME,
     ) -> None:
-        """
-        Open or create a persisted Chroma collection.
-
-        Args:
-            embeddings: LangChain embeddings used for indexing and query encoding.
-            persist_directory: Folder where Chroma persists its database files.
-            collection_name: Chroma collection identifier for document storage.
-        """
         self._persist_directory = Path(persist_directory)
         self._persist_directory.mkdir(parents=True, exist_ok=True)
 
-        # Reconnects to an existing collection when chroma_db already exists
+        # Reconnects to the existing collection if chroma_db already exists
         self._store = Chroma(
             collection_name=collection_name,
             embedding_function=embeddings,
@@ -44,43 +32,21 @@ class VectorStoreManager:
         )
 
     def index_documents(self, documents: list[Document]) -> list[str]:
-        """
-        Index LangChain Documents into Chroma while preserving metadata.
-
-        Args:
-            documents: List of LangChain Documents to index.
-
-        Returns:
-            List of document IDs assigned by Chroma.
-        """
-
+        """Embed and store chunks. Returns the IDs Chroma assigned."""
         if not documents:
-          return []
-
+            return []
         return self._store.add_documents(documents)
 
     def as_retriever(self, k: int = 4) -> VectorStoreRetriever:
-        """
-        Return a LangChain retriever backed by this vector store.
-
-        Args:
-            k: Number of nearest neighbors to retrieve per query.
-
-        Returns:
-            Configured retriever for use in RAG chains.
-        """
+        """Return a retriever that fetches the k most similar chunks."""
         return self._store.as_retriever(search_kwargs={"k": k})
 
     def delete_vectors(self, filename: str) -> None:
-        """
-        Delete all vectorss belonging to a document.
+        """Delete every chunk that came from this file."""
+        self._store.delete(where={"source": filename})
 
-        Args:
-            filename: PDF filename stored in metadata["source"].
-        """
 
-        self._store.delete(
-            where={
-                "source": filename
-            }
-        )
+@lru_cache(maxsize=1)
+def get_vector_store() -> VectorStoreManager:
+    """One shared vector store for the whole app (uploads and questions)."""
+    return VectorStoreManager(get_shared_embeddings())

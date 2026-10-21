@@ -20,3 +20,7 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets and local state
+.env
+metadata.json

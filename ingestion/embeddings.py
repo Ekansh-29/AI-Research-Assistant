@@ -1,38 +1,33 @@
 """Embedding model utilities for vector store integration."""
 
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.embeddings import Embeddings
+from functools import lru_cache
 
-# Compact English retrieval model; 384-dim vectors, Chroma-compatible
-DEFAULT_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+from langchain_core.embeddings import Embeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from config import EMBEDDING_MODEL
 
 
 class EmbeddingManager:
-    """
-    Manages a HuggingFace embedding model for reuse across the ingestion pipeline.
+    """Wraps a HuggingFace embedding model (turns text into vectors)."""
 
-    Instantiate once per process and pass the returned embeddings object to
-    LangChain vector stores such as ChromaDB.
-    """
-
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME) -> None:
-        """
-        Load and cache the embedding model.
-
-        Args:
-            model_name: HuggingFace model identifier.
-        """
-        # BGE models perform best with L2-normalized vectors for similarity search
+    def __init__(self, model_name: str = EMBEDDING_MODEL) -> None:
+        # BGE models work best with normalized vectors
         self._embeddings = HuggingFaceEmbeddings(
             model_name=model_name,
             encode_kwargs={"normalize_embeddings": True},
         )
 
     def get_embeddings(self) -> Embeddings:
-        """
-        Return the LangChain embeddings object for use with ChromaDB.
-
-        Returns:
-            Configured HuggingFaceEmbeddings instance.
-        """
         return self._embeddings
+
+
+@lru_cache(maxsize=1)
+def get_shared_embeddings() -> Embeddings:
+    """
+    Load the embedding model ONCE per process and reuse it everywhere.
+
+    lru_cache remembers the result, so the second call returns the same
+    object instead of loading the model again.
+    """
+    return EmbeddingManager().get_embeddings()

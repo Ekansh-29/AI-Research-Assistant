@@ -1,6 +1,5 @@
 """Streamlit interface for the AI Research Assistant."""
 
-from logging import Manager
 from pathlib import Path
 
 import streamlit as st
@@ -91,7 +90,7 @@ if uploaded_file:
         with st.spinner("Indexing document..."):
 
             try:
-                stats = manager.index_document(uploaded_file)
+                stats = manager.index_document(uploaded_file.name, uploaded_file.getvalue())
 
                 st.success(
                     f"✅ Indexed {stats['chunks']} chunks from {stats['pages']} pages."

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Left: papers -->
+    <aside class="sidebar">
+      <h1 class="brand">Research<span>Assistant</span></h1>
+
+      <form id="upload-form" class="upload">
+        <label for="file-input" class="dropzone" id="dropzone">
+          <strong>Upload a PDF</strong>
+          <span id="file-label">Click or drop a research paper here</span>
+        </label>
+        <input type="file" id="file-input" accept="application/pdf,.pdf" hidden />
+        <button type="submit" id="upload-btn" disabled>Index document</button>
+        <p id="upload-status" class="status" role="status"></p>
+      </form>
+
+      <h2 class="section-title">Indexed papers</h2>
+      <ul id="doc-list" class="doc-list">
+        <li class="empty">Loading…</li>
+      </ul>
+    </aside>
+
+    <!-- Right: chat -->
+    <main class="chat">
+      <div id="messages" class="messages">
+        <div class="welcome">
+          <h2>Ask anything about your papers</h2>
+          <p>Answers come only from the PDFs you've indexed, with page references.</p>
+        </div>
+      </div>
+
+      <form id="ask-form" class="ask">
+        <textarea id="question" rows="1" maxlength="2000"
+          placeholder="e.g. What problem does the Transformer solve?"></textarea>
+        <button type="submit" id="ask-btn">Ask</button>
+      </form>
+    </main>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

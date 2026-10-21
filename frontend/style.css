@@ -1,0 +1,167 @@
+:root {
+  --bg: #f6f5f1;
+  --panel: #ffffff;
+  --ink: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #e4e2dc;
+  --accent: #2f5d50;
+  --accent-soft: #e6efeb;
+  --danger: #b3261e;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  height: 100vh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.brand { font-size: 1.15rem; margin: 0 0 20px; letter-spacing: -0.01em; }
+.brand span { color: var(--accent); margin-left: 4px; }
+
+.dropzone {
+  display: block;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone strong { display: block; margin-bottom: 4px; }
+.dropzone span { font-size: .85rem; color: var(--muted); word-break: break-all; }
+
+button {
+  font: inherit;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+.upload button { width: 100%; margin-top: 10px; }
+
+.status { font-size: .85rem; min-height: 1.2em; margin: 8px 0 0; color: var(--muted); }
+.status.error { color: var(--danger); }
+.status.ok { color: var(--accent); }
+
+.section-title {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin: 24px 0 8px;
+}
+
+.doc-list { list-style: none; padding: 0; margin: 0; }
+.doc-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: start;
+}
+.doc-list .empty { color: var(--muted); font-size: .9rem; border: 0; }
+.doc-name { font-weight: 600; font-size: .92rem; word-break: break-word; }
+.doc-meta { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+.delete-btn {
+  background: none;
+  color: var(--muted);
+  padding: 2px 6px;
+  font-size: .8rem;
+}
+.delete-btn:hover { color: var(--danger); }
+
+/* ---------- Chat ---------- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px max(20px, calc((100% - 760px) / 2));
+}
+
+.welcome { text-align: center; color: var(--muted); margin-top: 18vh; }
+.welcome h2 { color: var(--ink); font-weight: 600; }
+
+.msg { margin-bottom: 18px; display: flex; }
+.msg.user { justify-content: flex-end; }
+
+.bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.user .bubble { background: var(--accent); color: #fff; }
+.msg.assistant .bubble { background: var(--panel); border: 1px solid var(--line); }
+.msg.error .bubble { border-color: var(--danger); color: var(--danger); }
+.bubble.thinking { color: var(--muted); font-style: italic; }
+
+.sources {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: .82rem;
+  color: var(--muted);
+  white-space: normal;
+}
+.sources summary { cursor: pointer; font-weight: 600; }
+.sources ul { margin: 6px 0 0; padding-left: 18px; }
+.sources .snippet { display: block; font-style: italic; margin-top: 2px; }
+
+.ask {
+  display: flex;
+  gap: 10px;
+  padding: 14px max(20px, calc((100% - 760px) / 2)) 20px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.ask textarea {
+  flex: 1;
+  resize: none;
+  font: inherit;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  max-height: 160px;
+}
+.ask textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+/* ---------- Phones ---------- */
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+  .chat { height: 80vh; }
+}
